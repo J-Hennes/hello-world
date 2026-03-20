@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phone Coverage Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #21262d;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --warn: #f78166;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --tag-bg: #1f2d3d;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 2rem 1.5rem;
+  }
+
+  header {
+    max-width: 1100px;
+    margin: 0 auto 2.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+  }
+
+  .header-title {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .header-title h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  .header-title p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.25rem;
+    font-weight: 300;
+  }
+
+  .stats {
+    display: flex;
+    gap: 1.5rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+  }
+
+  .stat { text-align: right; }
+  .stat-num { font-size: 1.4rem; font-weight: 600; }
+  .stat-num.covered { color: var(--accent2); }
+  .stat-num.uncovered { color: var(--warn); }
+  .stat-label { color: var(--muted); font-size: 0.7rem; }
+
+  .controls {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 0.8rem;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .search-box::placeholder { color: var(--muted); }
+
+  .filter-btns {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
+
+  .table-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+
+  thead th {
+    background: var(--surface);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(88,166,255,0.04); }
+
+  td {
+    padding: 0.7rem 1rem;
+    vertical-align: middle;
+  }
+
+  .phone-name {
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .group-tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+    margin-top: 0.25rem;
+  }
+
+  .phone-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .phone-num .inhouse {
+    display: block;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .covered-cell {
+    min-width: 180px;
+  }
+
+  .coverage-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 0.3rem 0.6rem;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.82rem;
+    width: 100%;
+    outline: none;
+    transition: all 0.15s;
+    cursor: text;
+  }
+  .coverage-input:hover {
+    border-color: var(--border);
+    background: var(--surface);
+  }
+  .coverage-input:focus {
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+  .coverage-input.has-value {
+    color: var(--accent2);
+    font-weight: 600;
+  }
+  .coverage-input::placeholder { color: var(--muted); font-style: italic; font-weight: 300; }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    background: var(--warn);
+    flex-shrink: 0;
+  }
+  .status-dot.covered { background: var(--accent2); }
+
+  .status-cell {
+    display: flex;
+    align-items: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .save-notice {
+    max-width: 1100px;
+    margin: 1rem auto 0;
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .save-notice span { color: var(--accent2); }
+
+  @media (max-width: 600px) {
+    .phone-num .outside { display: none; }
+    td:nth-child(3) { display: none; }
+    thead th:nth-child(3) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>// PHONE COVERAGE</h1>
+    <p>Anesthesia Department — Assign personnel to each line</p>
+  </div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num covered" id="stat-covered">0</div>
+      <div class="stat-label">Covered</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num uncovered" id="stat-uncovered">0</div>
+      <div class="stat-label">Uncovered</div>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <input class="search-box" type="text" id="search" placeholder="Search phone name, number, or person covering...">
+  <div class="filter-btns">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="covered">Covered</button>
+    <button class="filter-btn" data-filter="uncovered">Uncovered</button>
+    <button class="filter-btn" data-filter="CRNA">CRNA</button>
+    <button class="filter-btn" data-filter="ASC">ASC</button>
+    <button class="filter-btn" data-filter="MOR">MOR</button>
+    <button class="filter-btn" data-filter="MD">MD</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Status</th>
+        <th>Phone Name</th>
+        <th>Outside #</th>
+        <th>In-House #</th>
+        <th>Covered By</th>
+      </tr>
+    </thead>
+    <tbody id="phone-table-body"></tbody>
+  </table>
+</div>
+
+<div class="save-notice">
+  <span>●</span> Changes are saved automatically in your browser.
+</div>
+
+<script>
+const phones = [
+  {"id":"ZCSXMWCF","name":"CRNA 1 (GI 1)","outside":"1-847-723-4871","inhouse":"21-4871"},
+  {"id":"LHGMTFEL","name":"CRNA 2 (GI 2)","outside":"1-847-723-4872","inhouse":"21-4872"},
+  {"id":"CCRGHPEF","name":"CRNA 3 (GI 3)","outside":"1-847-723-4873","inhouse":"21-4873"},
+  {"id":"QMROKQQD","name":"CRNA 4 (GI 4)","outside":"1-847-723-4874","inhouse":"21-4874"},
+  {"id":"CWVCNZJL","name":"CRNA 5 (GI 5)","outside":"1-847-723-4895","inhouse":"21-4895"},
+  {"id":"NOGGELBE","name":"CRNA 6 (GI 6)","outside":"1-847-723-4896","inhouse":"21-4896"},
+  {"id":"KWTRBZGO","name":"CRNA 7 (GI 7)","outside":"1-847-723-4897","inhouse":"21-4897"},
+  {"id":"GCQBCZYJ","name":"OB CRNA 01","outside":"1-847-723-4899","inhouse":"21-4899"},
+  {"id":"VWEHWTMB","name":"OB CRNA 02","outside":"1-847-723-4988","inhouse":"21-4988"},
+  {"id":"ISOBHJYF","name":"ASC Anes 1","outside":"1-847-723-8651","inhouse":"21-8651"},
+  {"id":"REDEJDXS","name":"ASC Anes 2","outside":"1-847-723-8652","inhouse":"21-8652"},
+  {"id":"NZXORMRI","name":"ASC Anes 3","outside":"1-847-723-8653","inhouse":"21-8653"},
+  {"id":"WRTCQGCF","name":"ASC Anes 4","outside":"1-847-723-8654","inhouse":"21-8654"},
+  {"id":"HPOFFUDK","name":"ASC Anes 5","outside":"1-847-723-8655","inhouse":"21-8655"},
+  {"id":"RONEHDXT","name":"ASC Anes 6","outside":"1-847-723-8656","inhouse":"21-8656"},
+  {"id":"KRVNYSKZ","name":"ASC Anes 7","outside":"1-847-723-8657","inhouse":"21-8657"},
+  {"id":"PZRRAQNS","name":"MD Anesthesia 1","outside":"1-847-723-1421","inhouse":"21-1421"},
+  {"id":"ZAUMXWRH","name":"MD Anesthesia 2","outside":"1-847-723-1424","inhouse":"21-1424"},
+  {"id":"WDCRJLKP","name":"MD Anesthesia 3","outside":"1-847-723-1438","inhouse":"21-1438"},
+  {"id":"ZYWKHDXW","name":"MD Anesthesia 4","outside":"1-847-723-1443","inhouse":"21-1443"},
+  {"id":"TBBLPXLH","name":"MD Anesthesia 5","outside":"1-847-723-1446","inhouse":"21-1446"},
+  {"id":"ZHDWOLEF","name":"MD Anesthesia 6","outside":"1-847-723-1448","inhouse":"21-1448"},
+  {"id":"IMYYZPMN","name":"MD Anesthesia 7","outside":"1-847-723-1463","inhouse":"21-1463"},
+  {"id":"MWVZEZGC","name":"MD Anesthesia 8","outside":"1-847-723-1461","inhouse":"21-1461"},
+  {"id":"AEEGGYEC","name":"MD Anesthesia 9","outside":"1-847-723-4999","inhouse":"21-4999"},
+  {"id":"PQBESYYE","name":"MD Anesthesia 10","outside":"1-847-723-4996","inhouse":"21-4996"},
+  {"id":"YKCFHQLD","name":"MOR Anes 1","outside":"1-847-723-6618","inhouse":"21-6618"},
+  {"id":"HIFTYMLN","name":"MOR Anes 2","outside":"1-847-723-6619","inhouse":"21-6619"},
+  {"id":"WWLVYIOY","name":"MOR Anes 3","outside":"1-847-723-6623","inhouse":"21-6623"},
+  {"id":"YXTMOYRM","name":"MOR Anes 4","outside":"1-847-723-6624","inhouse":"21-6624"},
+  {"id":"IDJYNXXJ","name":"MOR Anes 5","outside":"1-847-723-6626","inhouse":"21-6626"},
+  {"id":"QLQSGNWO","name":"MOR Anes 6","outside":"1-847-723-6628","inhouse":"21-6628"},
+  {"id":"OOFVVPNJ","name":"MOR Anes 8","outside":"1-847-723-6632","inhouse":"21-6632"},
+  {"id":"NYPEIFTE","name":"MOR Anes 9","outside":"1-847-723-7044","inhouse":"21-7044"},
+  {"id":"GLGFMQWG","name":"MOR Anes 10","outside":"1-847-723-7062","inhouse":"21-7062"},
+  {"id":"RYXMLQOY","name":"MOR Anes 11","outside":"1-847-723-6634","inhouse":"21-6634"},
+  {"id":"FQLQIOMS","name":"MOR Anes 12","outside":"1-847-723-6636","inhouse":"21-6636"},
+  {"id":"RWEHUEAX","name":"MOR Anes 14","outside":"1-847-723-7063","inhouse":"21-7063"},
+  {"id":"BIEEDQRU","name":"MOR Anes 15","outside":"1-847-723-7064","inhouse":"21-7064"},
+  {"id":"KGKXWPUA","name":"MOR Anes 16","outside":"1-847-723-6637","inhouse":"21-6637"},
+  {"id":"LNGYCSSM","name":"MOR Anes 17","outside":"1-847-723-1764","inhouse":"21-1764"},
+  {"id":"ELAYFITI","name":"MOR Anes 18","outside":"1-847-723-1734","inhouse":"21-1734"},
+  {"id":"YDJHFDQR","name":"MOR Anes 19","outside":"1-847-723-6697","inhouse":"21-6697"},
+  {"id":"EWJYOKKZ","name":"MOR Anes 20","outside":"1-847-723-1737","inhouse":"21-1737"},
+  {"id":"YJCBJFJF","name":"Radiology Anesthesia","outside":"1-847-723-4991","inhouse":"21-4991"},
+  {"id":"ZJHICLNN","name":"EP Lab Anesthesia","outside":"1-847-723-4898","inhouse":"21-4898"},
+  {"id":"GAFEMBTI","name":"Dr. Wuenstel","outside":"1-847-723-8365","inhouse":"21-8365"},
+  {"id":"MKXAAPNU","name":"Adult Day Call","outside":"1-847-723-4800","inhouse":"21-4800"},
+  {"id":"MFGRGNEZ","name":"Peds Day Call","outside":"1-847-723-2637","inhouse":"21-2637"},
+];
+
+const STORAGE_KEY = 'phone_coverage_data';
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+let coverageData = loadData();
+let activeFilter = 'all';
+let searchQuery = '';
+
+function getGroup(name) {
+  if (name.startsWith('CRNA') || name.startsWith('OB CRNA')) return 'CRNA';
+  if (name.startsWith('ASC')) return 'ASC';
+  if (name.startsWith('MOR')) return 'MOR';
+  if (name.startsWith('MD')) return 'MD';
+  return 'Other';
+}
+
+function updateStats() {
+  const covered = phones.filter(p => coverageData[p.id] && coverageData[p.id].trim()).length;
+  document.getElementById('stat-covered').textContent = covered;
+  document.getElementById('stat-uncovered').textContent = phones.length - covered;
+}
+
+function filteredPhones() {
+  return phones.filter(p => {
+    const val = (coverageData[p.id] || '').trim();
+    const isCovered = val !== '';
+    const group = getGroup(p.name);
+
+    if (activeFilter === 'covered' && !isCovered) return false;
+    if (activeFilter === 'uncovered' && isCovered) return false;
+    if (['CRNA','ASC','MOR','MD'].includes(activeFilter) && group !== activeFilter) return false;
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!p.name.toLowerCase().includes(q) &&
+          !p.outside.includes(q) &&
+          !p.inhouse.includes(q) &&
+          !val.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderTable() {
+  const tbody = document.getElementById('phone-table-body');
+  const list = filteredPhones();
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">No phones match your filter.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(p => {
+    const val = coverageData[p.id] || '';
+    const isCovered = val.trim() !== '';
+    return `<tr data-id="${p.id}">
+      <td>
+        <div class="status-cell">
+          <span class="status-dot ${isCovered ? 'covered' : ''}"></span>
+          ${isCovered ? 'Covered' : 'Open'}
+        </div>
+      </td>
+      <td>
+        <div class="phone-name">${p.name}</div>
+        <span class="group-tag">${getGroup(p.name)}</span>
+      </td>
+      <td><span class="phone-num outside">${p.outside}</span></td>
+      <td><span class="phone-num"><span class="inhouse">${p.inhouse}</span></span></td>
+      <td class="covered-cell">
+        <input
+          class="coverage-input ${isCovered ? 'has-value' : ''}"
+          type="text"
+          placeholder="Type name..."
+          value="${val.replace(/"/g, '&quot;')}"
+          data-id="${p.id}"
+        >
+      </td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('.coverage-input').forEach(input => {
+    input.addEventListener('input', function() {
+      const id = this.dataset.id;
+      coverageData[id] = this.value;
+      saveData(coverageData);
+      this.classList.toggle('has-value', this.value.trim() !== '');
+      const row = this.closest('tr');
+      const dot = row.querySelector('.status-dot');
+      const statusText = row.querySelector('.status-cell');
+      const covered = this.value.trim() !== '';
+      dot.className = 'status-dot' + (covered ? ' covered' : '');
+      statusText.innerHTML = `<span class="status-dot ${covered ? 'covered' : ''}"></span>${covered ? 'Covered' : 'Open'}`;
+      updateStats();
+    });
+  });
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    activeFilter = this.dataset.filter;
+    renderTable();
+  });
+});
+
+document.getElementById('search').addEventListener('input', function() {
+  searchQuery = this.value;
+  renderTable();
+});
+
+updateStats();
+renderTable();
+</script>
+</body>
+</html>
