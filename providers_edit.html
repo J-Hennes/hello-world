@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Edit Providers</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2rem;
+      color: #2d2d2d;
+    }
+
+    #status {
+      text-align: center;
+      font-size: 1rem;
+      color: #888;
+      margin-bottom: 20px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      background: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    thead {
+      background: #059669;
+      color: white;
+    }
+
+    thead th {
+      padding: 14px 18px;
+      text-align: left;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #e5e7eb;
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: #ecfdf5;
+    }
+
+    tbody td {
+      padding: 10px 18px;
+      vertical-align: middle;
+    }
+
+    /* Editable name input */
+    .name-input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: #111;
+      background: transparent;
+      transition: border 0.2s, background 0.2s;
+      outline: none;
+    }
+
+    .name-input:focus {
+      border-color: #059669;
+      background: #f0fdf4;
+    }
+
+    .name-input.changed {
+      border-color: #f59e0b;
+      background: #fffbeb;
+    }
+
+    /* Save button per row */
+    .save-btn {
+      padding: 5px 14px;
+      background: #059669;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s, opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .save-btn:hover:not(:disabled) {
+      background: #047857;
+    }
+
+    .save-btn:disabled {
+      background: #a7f3d0;
+      cursor: not-allowed;
+    }
+
+    /* Toast notification */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 12px 22px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: white;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 1000;
+    }
+
+    #toast.show {
+      opacity: 1;
+    }
+
+    #toast.success { background: #059669; }
+    #toast.error   { background: #dc2626; }
+
+    .error {
+      text-align: center;
+      color: #dc2626;
+      font-size: 1rem;
+      margin-top: 20px;
+    }
+
+    .record-count {
+      text-align: right;
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 12px;
+      padding-right: 4px;
+    }
+
+    /* Add new record form */
+    .add-form {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .add-form input {
+      flex: 1;
+      min-width: 200px;
+      padding: 9px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .add-form input:focus {
+      border-color: #059669;
+    }
+
+    .add-form button {
+      padding: 9px 20px;
+      background: #059669;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .add-form button:hover {
+      background: #047857;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>✏️ Edit Providers</h1>
+  <div id="status">Loading data...</div>
+
+  <div class="add-form">
+    <input type="text" id="new-name" placeholder="Enter new provider name..." />
+    <button onclick="addProvider()">+ Add Provider</button>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="providers-table">
+      <thead id="table-head"></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+  <div class="record-count" id="record-count"></div>
+  <div class="error" id="error-msg"></div>
+
+  <!-- Toast notification -->
+  <div id="toast"></div>
+
+  <script>
+    const SUPABASE_URL     = 'https://hdzjbkxovhjgxwgvhjni.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhkempia3hvdmhqZ3h3Z3Zoam5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzYyNzQsImV4cCI6MjA4OTQxMjI3NH0.ONIftH3n0NU2Ilw5fqkBjzcSpPkglfFs0czXoBOboEQ';
+    const TABLE_NAME        = 'Providers_tbl';
+
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let nameColumn  = null;  // will be auto-detected
+    let idColumn    = null;  // will be auto-detected
+    let allData     = [];
+
+    // ── Show a brief toast message ──────────────────────────────────────────
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `show ${type}`;
+      setTimeout(() => { toast.className = ''; }, 3000);
+    }
+
+    // ── Detect the primary key and name column ──────────────────────────────
+    function detectColumns(row) {
+      const keys = Object.keys(row);
+
+      // Best-guess for the primary key: first column or one named *id*
+      idColumn = keys.find(k => /^id$/i.test(k)) ||
+                 keys.find(k => /id$/i.test(k))  ||
+                 keys[0];
+
+      // Best-guess for the name column: one named *name*, *provider*, or *title*
+      nameColumn = keys.find(k => /name/i.test(k))     ||
+                   keys.find(k => /provider/i.test(k)) ||
+                   keys.find(k => /title/i.test(k))    ||
+                   keys.find(k => k !== idColumn);      // fallback: second column
+    }
+
+    // ── Build the table header ──────────────────────────────────────────────
+    function buildHeader() {
+      const headEl = document.getElementById('table-head');
+      headEl.innerHTML = '';
+      const headerRow = document.createElement('tr');
+      [idColumn, nameColumn, 'Actions'].forEach(label => {
+        const th = document.createElement('th');
+        th.textContent = label === idColumn ? idColumn
+                        : label === nameColumn ? nameColumn
+                        : '';
+        headerRow.appendChild(th);
+      });
+      headEl.appendChild(headerRow);
+    }
+
+    // ── Render all rows ─────────────────────────────────────────────────────
+    function renderRows() {
+      const bodyEl  = document.getElementById('table-body');
+      const countEl = document.getElementById('record-count');
+      bodyEl.innerHTML = '';
+
+      allData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.dataset.id = row[idColumn];
+
+        // ID cell (read-only)
+        const tdId = document.createElement('td');
+        tdId.textContent = row[idColumn];
+        tr.appendChild(tdId);
+
+        // Name cell (editable)
+        const tdName = document.createElement('td');
+        const input  = document.createElement('input');
+        input.type        = 'text';
+        input.className   = 'name-input';
+        input.value       = row[nameColumn] ?? '';
+        input.dataset.original = input.value;
+
+        input.addEventListener('input', () => {
+          const changed = input.value !== input.dataset.original;
+          input.classList.toggle('changed', changed);
+          btn.disabled = !changed;
+        });
+
+        tdName.appendChild(input);
+        tr.appendChild(tdName);
+
+        // Save button cell
+        const tdAction = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.textContent = 'Save';
+        btn.className   = 'save-btn';
+        btn.disabled    = true;
+        btn.onclick     = () => saveRow(row[idColumn], input, btn);
+        tdAction.appendChild(btn);
+        tr.appendChild(tdAction);
+
+        bodyEl.appendChild(tr);
+      });
+
+      countEl.textContent = `${allData.length} record${allData.length !== 1 ? 's' : ''} loaded`;
+    }
+
+    // ── Save a single edited row ────────────────────────────────────────────
+    async function saveRow(id, input, btn) {
+      const newValue = input.value.trim();
+      if (!newValue) { showToast('Name cannot be empty.', 'error'); return; }
+
+      btn.disabled    = true;
+      btn.textContent = 'Saving…';
+
+      const { error } = await client
+        .from(TABLE_NAME)
+        .update({ [nameColumn]: newValue })
+        .eq(idColumn, id);
+
+      if (error) {
+        showToast(`Error: ${error.message}`, 'error');
+        btn.disabled    = false;
+        btn.textContent = 'Save';
+        return;
+      }
+
+      // Update local cache
+      const record = allData.find(r => r[idColumn] === id);
+      if (record) record[nameColumn] = newValue;
+
+      input.dataset.original = newValue;
+      input.classList.remove('changed');
+      btn.textContent = 'Saved ✓';
+      showToast('Provider updated successfully!');
+      setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+    }
+
+    // ── Add a new provider ──────────────────────────────────────────────────
+    async function addProvider() {
+      const nameInput = document.getElementById('new-name');
+      const name = nameInput.value.trim();
+      if (!name) { showToast('Please enter a provider name.', 'error'); return; }
+
+      const { data, error } = await client
+        .from(TABLE_NAME)
+        .insert([{ [nameColumn]: name }])
+        .select();
+
+      if (error) {
+        showToast(`Error: ${error.message}`, 'error');
+        return;
+      }
+
+      if (data && data.length > 0) {
+        allData.push(data[0]);
+        renderRows();
+        nameInput.value = '';
+        showToast('Provider added successfully!');
+      }
+    }
+
+    // ── Load table ──────────────────────────────────────────────────────────
+    async function loadTable() {
+      const statusEl = document.getElementById('status');
+      const errorEl  = document.getElementById('error-msg');
+
+      const { data, error } = await client.from(TABLE_NAME).select('*');
+
+      if (error) {
+        statusEl.textContent = '';
+        errorEl.textContent  = `Error: ${error.message}`;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        statusEl.textContent = 'No records found in the table.';
+        return;
+      }
+
+      allData = data;
+      detectColumns(data[0]);
+      buildHeader();
+      renderRows();
+      statusEl.textContent = '';
+    }
+
+    loadTable();
+  </script>
+
+</body>
+</html>
